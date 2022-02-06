@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, TextInput, View, Button, Alert } from 'react-native';
-import MapView, { Marker } from 'react-native-maps'; //expo install react-native-maps 
+import { StyleSheet, View, Button, Alert } from 'react-native';
+import MapView, { Marker } from 'react-native-maps'; //expo install react-native-maps
+import * as Location from 'expo-location'; //expo install expo-location
 import { Input } from 'react-native-elements';
 
 export default function App() {
@@ -12,8 +13,8 @@ export default function App() {
       longitude: 25.07525595193482,
       latitudeDelta: 0.0322,
       longitudeDelta: 0.0221,
-    }
-  );
+  });
+  const [location, setLocation] = useState(null);
 
   const search = () => {
     setMarkerTitle(text.trim())
@@ -22,20 +23,41 @@ export default function App() {
     fetch(`https://nominatim.openstreetmap.org/search?q=${keyword}&format=json`)
     .then(response => response.json())
     .then(data => {
-      setRegion({...region, latitude: parseFloat(data[0].lat)});
-      setRegion({...region, longitude: parseFloat(data[0].lon)});
+      setRegion({...region,
+        latitude: parseFloat(data[0].lat),
+        longitude: parseFloat(data[0].lon)
+      });
     })
     .catch(error => {
       Alert.alert('Error', error);
     });
   }
 
+  //for fetching the location
+  useEffect(() => (async () => {
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('No permission to get location')
+      return;
+    }
+
+    let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+    /* setLocation(location); */
+    //send location to region
+    setRegion({...region,
+      latitude: location.coords.latitude,
+      longitude: location.coords.longitude
+    });
+    console.log(location)
+    setMarkerTitle("Your location");
+  })(), []);
+
   return (
     <View style={styles.container}>
-      {/* <Text>hello</Text> */}
       <MapView
         style={styles.map}
         region={region}>
+        {/* Marker will be in the middle of the showed region */}
         <Marker
           coordinate={{
             latitude: region.latitude,
@@ -47,7 +69,7 @@ export default function App() {
       <Input
           style={{ paddingLeft: 4,}}
           value={text}
-          placeholder="Address"
+          placeholder="Address or city"
           leftIcon={{ type: 'font-awesome', name: 'map-marker' }}
           onChangeText={input => setText(input)}
         />
